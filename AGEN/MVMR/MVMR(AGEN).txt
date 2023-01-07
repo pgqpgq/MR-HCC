@@ -1,0 +1,31 @@
+
+data <- data.table::fread( "E:/MVMR.csv")
+
+dim(data)
+
+view(data)
+
+MVMR_formatted <- format_mvmr(BXGs = data[,c(2,6,8,10)],
+                              BYG = data[,4],
+                              seBXGs = data[,c(3,5,7,9)],
+                              seBYG = data[,5],
+                              RSID = data[,1])
+
+MVMR_formatted<- as.data.frame(MVMR_formatted)
+
+view(MVMR_formatted)
+
+dim(data)
+
+res<- ivw_mvmr( MVMR_formatted)
+
+res
+
+OR<- generate_odds_ratios(res)
+
+OR
+
+
+write.table(OR,file = "E:/MVMR.csv",
+            sep = "\t",row.names = T,col.names = T,
+            quote = T)

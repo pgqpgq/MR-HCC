@@ -1,0 +1,95 @@
+library(TwoSampleMR)
+library(MRPRESSO)
+library(dplyr)
+library(ieugwasr)
+library(MendelianRandomization)
+library(MVMR)
+library(tibble)
+
+TG<-extract_instruments(outcomes = 'bbj-a-55',clump = F,
+                                 r2=0.001,kb=10000,access_token = NULL)
+
+TG <-clump_data(TG,clump_r2=0.001,clump_kb=10000,pop = "EAS")
+
+dim(TG)
+
+attach(TG)
+fstatistic.exposure<-beta.exposure^2/se.exposure^2
+r_squared<-(2*(1-eaf.exposure)*eaf.exposure*beta.exposure)/(se.exposure*	105597^0.5)
+cholesterol<-cbind(TG,fstatistic.exposure,r_squared)
+sum(r_squared,na.rm = TRUE)
+detach(TG)
+
+dim(TG)
+
+HCC<-extract_outcome_data(snps = TG$SNP,
+                                    outcomes = 'bbj-a-158',
+                                    proxies = TRUE,
+                                    maf_threshold = 0.01,
+                                    access_token = NULL)
+dim(HCC)
+
+mydata<-harmonise_data(exposure_dat = TG,
+                       outcome_dat = HCC,
+                       action = 2)
+
+
+dim(mydata)
+
+
+Presso<- mr_presso(BetaOutcome ="beta.outcome", BetaExposure = "beta.exposure", SdOutcome ="se.outcome", SdExposure = "se.exposure", 
+                   OUTLIERtest = TRUE,DISTORTIONtest = TRUE, data = mydata, NbDistribution = 1500,  
+                   SignifThreshold = 0.05)
+
+Presso
+
+write.csv(mydata,
+          file = "E:/mydata.csv")
+
+R2<-sum(mydata$r_squared,na.rm = TRUE)
+R2
+
+write.csv(R2,
+          file = "E:/R2.csv")
+
+write.csv(mydata[,c('SNP','effect_allele.exposure','other_allele.exposure','effect_allele.outcome','other_allele.outcome','beta.exposure','beta.outcome','se.outcome',"se.exposure",'pval.outcome','pval.exposure','fstatistic.exposure')],
+          file ="E:/mydata.csv")
+
+
+result<-mr(mydata,method_list = c("mr_ivw_mre",
+                                  "mr_egger_regression",
+                                  "mr_ivw_fe",
+                                  "mr_weighted_median"
+))
+result
+
+OR<-generate_odds_ratios(result)
+
+
+OR
+
+
+write.csv(newresult[,c('method','pval','OR','upper','lower')],
+          file = "E:/OR.csv")
+
+het<-mr_heterogeneity(mydata,method_list = c("mr_ivw_mre",
+                                             "mr_egger_regression",
+                                             "mr_ivw_fe",
+                                             "mr_weighted_median"))
+het
+
+write.csv(het[,c('method','Q_pval','Q')],
+          file = "E:/het.csv")
+
+pleio<-mr_pleiotropy_test(mydata)
+pleio
+
+write.csv(pleio[,c('egger_intercept','pval')],
+          file = "E:/pleio.csv")
+
+single<-mr_leaveoneout(mydata)
+mr_leaveoneout_plot(single)
+mr_scatter_plot(result,mydata)
+res_single<-mr_singlesnp(mydata)
+mr_forest_plot(res_single)
+mr_funnel_plot(res_single)
